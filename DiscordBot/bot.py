@@ -73,7 +73,7 @@ class ModBot(discord.Client):
     async def handle_dm(self, message):
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
-            reply =  "Use the `report` command to begin the reporting process.\n"
+            reply = "Use the `report` command to begin the reporting process.\n"
             reply += "Use the `cancel` command to cancel the report process.\n"
             await message.channel.send(reply)
             return

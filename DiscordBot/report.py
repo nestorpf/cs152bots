@@ -60,7 +60,9 @@ class Report:
 
         if self.state == State.MESSAGE_IDENTIFIED:
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "What is the reason you are reporting?"]
+                    "What is the reason you are reporting? \n \
+                    Type: spam, offensive content, harrasment, or imminent danger"]
+
 
         return []
 

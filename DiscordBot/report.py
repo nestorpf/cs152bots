@@ -55,13 +55,15 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            # return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-            #         "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
-
-        if self.state == State.MESSAGE_IDENTIFIED:
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "What is the reason you are reporting? \n \
-                    Type: spam, offensive content, harrasment, or imminent danger"]
+                    "What is the reason you are reporting? Type: spam, offensive content, harrasment, or imminent danger"]
+
+        # if self.state == State.MESSAGE_IDENTIFIED:
+        #     return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
+        #             "What is the reason you are reporting? Type: spam, offensive content, harrasment, or imminent danger"]
+        if self.state == "spam":
+            return ["Please select type of spam. \n \
+                    Type: fraud/scam, solicitation, impersonation"]
 
 
         return []

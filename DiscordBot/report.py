@@ -6,70 +6,38 @@ class State(Enum):
     REPORT_START = auto()
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
+    AWAITING_SPAM_TYPE = auto()
+    AWAITING_OFF_TYPE = auto()
+    AWAITING_HATE_TYPE = auto()
+    AWAITING_HAR_TYPE = auto()
+    AWAITING_IMM_TYPE = auto()
     REPORT_COMPLETE = auto()
-    CONFIRMATION_MESSAGE = auto()
-    ADDITIONAL_COMMENT_PROMPT = auto()
-    THREAT = auto()
 
-class Abuse():
-    SPAM = 1
-    HARASSMENT = 2
-    OFFENSIVE_CONTENT = 3
-    THREAT = 4
-
-class SpamType():
-    FRAUD/SCAM = 1
-    SOLICITATION = 2
-    IMPERSONATION = 3
-
-class OffensiveContentType():
-    HATE_SPEECH = 1
-    SEXUAL_EXPLICIT = 2
-    IMPERSONATION = 3
-    CHILD_SEXUAL = 4
-    ADVOCATING_VIOLENCE = 5
-class HarassmentType():
-    SEXUAL_EXPLICIT = 1
-    IMPERSONATION = 2
-    CHILD_SEXUAL = 3
-
-class ImminentDangerType():
-    SELF_HARM = 1
-    SUICIDE = 2
-    PHYSICAL_ABUSE = 3
-    
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
-    isNotReason = True
 
     def __init__(self, client):
         self.state = State.REPORT_START
         self.client = client
         self.message = None
-    
-    async def handle_message(self, message):
-        '''
-        This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
-        prompts to offer at each of those states. You're welcome to change anything you want; this skeleton is just here to
-        get you started and give you a model for working with Discord. 
-        '''
 
+    async def handle_message(self, message):
         if message.content == self.CANCEL_KEYWORD:
             self.state = State.REPORT_COMPLETE
             return ["Report cancelled."]
-        
+
         if self.state == State.REPORT_START:
-            reply =  "Thank you for starting the reporting process. "
-            reply += "Say `help` at any time for more information.\n\n"
-            reply += "Please copy paste the link to the message you want to report.\n"
-            reply += "You can obtain this link by right-clicking the message and clicking `Copy Message Link`."
+            reply = ("Thank you for starting the reporting process. "
+                     "Say `help` at any time for more information.\n\n"
+                     "Please copy-paste the link to the message you want to report.\n"
+                     "You can obtain this link by right-clicking the message and clicking `Copy Message Link`.")
             self.state = State.AWAITING_MESSAGE
             return [reply]
-        
+
         if self.state == State.AWAITING_MESSAGE:
-            # Parse out the three ID strings from the message link
+            # Parse the three ID strings from the message link
             m = re.search('/(\d+)/(\d+)/(\d+)', message.content)
             if not m:
                 return ["I'm sorry, I couldn't read that link. Please try again or say `cancel` to cancel."]
@@ -80,53 +48,78 @@ class Report:
             if not channel:
                 return ["It seems this channel was deleted or never existed. Please try again or say `cancel` to cancel."]
             try:
-                message = await channel.fetch_message(int(m.group(3)))
+                reported_message = await channel.fetch_message(int(m.group(3)))
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
-            # Here we've found the message - it's up to you to decide what to do next!
+            # Store the message reference and switch to MESSAGE_IDENTIFIED
+            self.message = reported_message
             self.state = State.MESSAGE_IDENTIFIED
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "What is the reason you are reporting? Type: spam, offensive content, harassment, or imminent danger"]
+            return ["I found this message:", f"```{reported_message.author.name}: {reported_message.content}```",
+                    "Please specify the abuse type (Spam, Offensive Content, Harassment, Imminent Danger)"]
 
-        reasons = ["spam", "offensive content", "harassment", "imminent danger"]
-        if self.state == State.MESSAGE_IDENTIFIED and self.isNotReason:
-            reason = message.content.lower()
-            if reason not in reasons:
-                return ["Sorry, I do not recognize your response. Please type one of the four options"]
-            if reason == "spam":
-                self.isNotReason = False
-                return ["What is the spam type? Type the corresponding number: \n \
-                        1 for fraud/scam, 2 for solicitation, or 3 for impersonation"]
-            if reason == "offensive content":
-                self.isNotReason = False
-                return ["What type of offensive content? Type the corresponding number: \n \
-                        1 for sexually explicit content, 2 for impersonation, or 3 for child sexual abuse material."]
-            if reason == "harassment":
-                self.isNotReason = False
-                return ["What type of harassment? Type the corresponding number: \n \
-                        1 for hate speech, 2 for sexually explicit content, 3 for impersonation."]
-            if reason == "imminent danger":
-                self.isNotReason = False
-                return ["What is the imminent danger type? Type the corresponding number: \n \
-                        1 for self-harm, 2 for suicide, or 3 for physical abuse."]
-
-        nums = ["1", "2", "3"]
         if self.state == State.MESSAGE_IDENTIFIED:
-            num = message.content
-            if num not in nums:
-                return ["Number is not valid. Please input one of the following: 1, 2, or, 3."]
+            abuse_type = message.content.lower()
+            if abuse_type == "spam":
+                self.state = State.AWAITING_SPAM_TYPE  # Transition to awaiting spam type
+                return ["Please specify the type of `Spam` (Fraud/Scam, Solicitation, Impersonation)"]
+            elif abuse_type == "offensive content":
+                self.state = State.AWAITING_OFF_TYPE
+                return ["Please specify the type of `Offensive Constent` (Hate Speech, Sexually Explicit Content, Impersonation, Child Sexual Abuse Material, Advocating or Glorifying Violence)"]
+            elif abuse_type == "harassment":
+                self.state = State.AWAITING_HAR_TYPE
+                return ["Pleas specify the type of `Harassment` (Sexually Explicit Content, Impersonation, Child Sexual Abuse Material)"]
+            elif abuse_type == "imminent danger":
+                self.state = State.AWAITING_IMM_TYPE
+                return ["Please sepcify the type of `Imminent Danger` (Self-Harm, Suicide, Physical Abuse)"]
+            else:
+                return ["Invalid spam type. Please specify a valid type (Spam, Offensive Content, Harassment, Imminent Danger)"]
 
+        if self.state == State.AWAITING_IMM_TYPE:
+            imm_type = message.content.lower()
+            if imm_type in ["self=harm", "suicide", "physical abuse", "self harm"]:
+                return await self.thank_user(message)
+            else:
+                return ["Invalid `Imminent Danger` type. Please specify a valid type (Self-Harm, Suicide, Physical Abuse)"]
+            
+        if self.state == State.AWAITING_HAR_TYPE:
+            har_type = message.content.lower()
+            if har_type in ["sexually explicit content", "impersonation", "child sexual abuse material"]:
+                return await self.thank_user(message)
+            else:
+                return ["Invalid `Harassment` type. Please specify a valid type (Sexually Explicit Content, Impersonation, Child Sexual Abuse Material)"]
 
+        if self.state == State.AWAITING_OFF_TYPE:
+            off_type = message.content.lower()
+            if off_type in ["sexually explicit content", "impersonation", "child sexual abuse material", "advocating or glorifying violence", "advocating violence", "glorifying violence"]:
+                return await self.thank_user(message)
+            elif off_type == "hate speech":
+                self.state = State.AWAITING_HATE_TYPE
+                return ["Please specify the type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
+            else:
+                return ["Invalid `Offensive Content` type. Please specify a valid type (Hate Speech, Sexually Explicit Content, Impersonation, Child Sexual Abuse Material, Advocating or Glorifying Violence)"]
+        
+        if self.state == State.AWAITING_HATE_TYPE:
+            hate_type = message.content.lower()
+            if hate_type in ["racism", "homophobia", "sexism", "other"]:
+                return await self.thank_user(message)
+            else:
+                return ["Please specify a valid `Hate Speech` type (Racism, Homophobia, Sexism, Other)"]
+            
 
+        if self.state == State.AWAITING_SPAM_TYPE:
+            spam_type = message.content.lower()
+            if spam_type in ["fraud/scam", "solicitation", "impersonation", "fraud", "scam"]:
+                return await self.thank_user(message)
+            else:
+                return ["Please specify a valid `Spam` type (Fraud/Scam, Solicitation, Impersonation)."]
 
+    async def thank_user(self, message):
+        if self.state == State.AWAITING_IMM_TYPE:
+            await message.channel.send("Please contact your local authorities is anybody is in immediate danger. We will also review the reported content.")
+        self.state = State.REPORT_COMPLETE
+        return ["Thanks for reporting. Our team will review the messages and decide on appropriate action."]
 
-        return []
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
-    
-
-
-    
-

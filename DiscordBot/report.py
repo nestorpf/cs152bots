@@ -12,6 +12,7 @@ class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
+    isNotReason = True
 
     def __init__(self, client):
         self.state = State.REPORT_START
@@ -59,11 +60,12 @@ class Report:
                     "What is the reason you are reporting? Type: spam, offensive content, harassment, or imminent danger"]
 
         reasons = ["spam", "offensive content", "harassment", "imminent danger"]
-        if self.state == State.MESSAGE_IDENTIFIED:
+        if self.state == State.MESSAGE_IDENTIFIED and self.isNotReason:
             reason = message.content.lower()
             if reason not in reasons:
                 return ["Sorry, I do not recognize your response. Please type one of the four options"]
             if reason == "spam":
+                self.isNotReason = False
                 return ["What is the spam type? Type the corresponding number: \n \
                         1 for fraud/scam, 2 for solicitation, or 3 for impersonation"]
             if reason == "offensive content":

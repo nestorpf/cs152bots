@@ -56,14 +56,34 @@ class Report:
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "What is the reason you are reporting? Type: spam, offensive content, harrasment, or imminent danger"]
+                    "What is the reason you are reporting? Type: spam, offensive content, harassment, or imminent danger"]
 
-        # if self.state == State.MESSAGE_IDENTIFIED:
-        #     return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-        #             "What is the reason you are reporting? Type: spam, offensive content, harrasment, or imminent danger"]
-        if self.state == "spam":
-            return ["Please select type of spam. \n \
-                    Type: fraud/scam, solicitation, impersonation"]
+        reasons = ["spam", "offensive content", "harassment", "imminent danger"]
+        if self.state == State.MESSAGE_IDENTIFIED:
+            reason = message.content.lower()
+            if reason not in reasons:
+                return ["Sorry, I do not recognize your response. Please type one of the four options"]
+            if reason == "spam":
+                return ["What is the spam type? Type the corresponding number: \n \
+                        1 for fraud/scam, 2 for solicitation, or 3 for impersonation"]
+            if reason == "offensive content":
+                return ["What type of offensive content? Type the corresponding number: \n \
+                        1 for sexually explicit content, 2 for impersonation, or 3 for child sexual abuse material."]
+            if reason == "harassment":
+                return ["What type of harassment? Type the corresponding number: \n \
+                        1 for hate speech, 2 for sexually explicit content, 3 for impersonation."]
+            if reason == "imminent danger":
+                return ["What is the imminent danger type? Type the corresponding number: \n \
+                        1 for self-harm, 2 for suicide, or 3 for physical abuse."]
+
+        nums = ["1", "2", "3"]
+        if self.state == State.MESSAGE_IDENTIFIED:
+            num = message.content
+            if num not in nums:
+                return ["Number is not valid. Please input one of the following: 1, 2, or, 3."]
+
+
+
 
 
         return []

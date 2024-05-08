@@ -2,6 +2,8 @@ from enum import Enum, auto
 import discord
 import re
 
+report_flow = []
+
 class State(Enum):
     REPORT_START = auto()
     AWAITING_MESSAGE = auto()
@@ -22,6 +24,7 @@ class Report:
         self.state = State.REPORT_START
         self.client = client
         self.message = None
+        self.reporter_name = None
 
     async def handle_message(self, message):
         if message.content == self.CANCEL_KEYWORD:
@@ -29,10 +32,13 @@ class Report:
             return ["Report cancelled."]
 
         if self.state == State.REPORT_START:
+            global report_flow
+            report_flow = []
             reply = ("Thank you for starting the reporting process. "
                      "Say `help` at any time for more information.\n\n"
                      "Please copy-paste the link to the message you want to report.\n"
                      "You can obtain this link by right-clicking the message and clicking `Copy Message Link`.")
+            self.reporter_name = message.author.name
             self.state = State.AWAITING_MESSAGE
             return [reply]
 
@@ -60,6 +66,8 @@ class Report:
 
         if self.state == State.MESSAGE_IDENTIFIED:
             abuse_type = message.content.lower()
+            if abuse_type in ["spam", "offensive content", "harassment", "imminent danger"]:
+                report_flow.append(abuse_type)
             if abuse_type == "spam":
                 self.state = State.AWAITING_SPAM_TYPE  # Transition to awaiting spam type
                 return ["Please specify the type of `Spam` (Fraud/Scam, Solicitation, Impersonation)"]
@@ -78,6 +86,7 @@ class Report:
         if self.state == State.AWAITING_IMM_TYPE:
             imm_type = message.content.lower()
             if imm_type in ["self=harm", "suicide", "physical abuse", "self harm"]:
+                report_flow.append(imm_type)
                 return await self.thank_user(message)
             else:
                 return ["Invalid `Imminent Danger` type. Please specify a valid type (Self-Harm, Suicide, Physical Abuse)"]
@@ -85,6 +94,7 @@ class Report:
         if self.state == State.AWAITING_HAR_TYPE:
             har_type = message.content.lower()
             if har_type in ["sexually explicit content", "impersonation", "child sexual abuse material"]:
+                report_flow.append(har_type)
                 return await self.thank_user(message)
             else:
                 return ["Invalid `Harassment` type. Please specify a valid type (Sexually Explicit Content, Impersonation, Child Sexual Abuse Material)"]
@@ -92,8 +102,10 @@ class Report:
         if self.state == State.AWAITING_OFF_TYPE:
             off_type = message.content.lower()
             if off_type in ["sexually explicit content", "impersonation", "child sexual abuse material", "advocating or glorifying violence", "advocating violence", "glorifying violence"]:
+                report_flow.append(off_type)
                 return await self.thank_user(message)
             elif off_type == "hate speech":
+                report_flow.append("hate speech")
                 self.state = State.AWAITING_HATE_TYPE
                 return ["Please specify the type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
             else:
@@ -102,6 +114,7 @@ class Report:
         if self.state == State.AWAITING_HATE_TYPE:
             hate_type = message.content.lower()
             if hate_type in ["racism", "homophobia", "sexism", "other"]:
+                report_flow.append(hate_type)
                 return await self.thank_user(message)
             else:
                 return ["Please specify a valid `Hate Speech` type (Racism, Homophobia, Sexism, Other)"]
@@ -110,14 +123,40 @@ class Report:
         if self.state == State.AWAITING_SPAM_TYPE:
             spam_type = message.content.lower()
             if spam_type in ["fraud/scam", "solicitation", "impersonation", "fraud", "scam"]:
+                report_flow.append(spam_type)
                 return await self.thank_user(message)
             else:
                 return ["Please specify a valid `Spam` type (Fraud/Scam, Solicitation, Impersonation)."]
+
+
+    async def send_report_to_moderator(self):
+        """
+        Send the completed report to the corresponding moderator channel.
+        """
+        guild_id = self.message.guild.id
+        mod_channel = self.client.mod_channels.get(guild_id)
+
+        original_message = f"{self.message.author.name}: {self.message.content}"
+        user_flow = ""
+        for i, elem in enumerate(report_flow):
+            if i == len(report_flow) - 1:
+                user_flow += elem[0].upper() + elem[1:]
+            else:
+                user_flow += (elem[0].upper() + elem[1:] + " -> ")
+        report_message = (
+            f"Report initiated by user: `{self.reporter_name}`\n\n"
+            f"Reported Message:\n```{original_message}```\n"
+            f"User Report Flow: `{user_flow}`"
+        )
+        await mod_channel.send(report_message)
 
     async def thank_user(self, message):
         if self.state == State.AWAITING_IMM_TYPE:
             await message.channel.send("Please contact your local authorities is anybody is in immediate danger. We will also review the reported content.")
         self.state = State.REPORT_COMPLETE
+
+        await self.send_report_to_moderator()
+
         return ["Thanks for reporting. Our team will review the messages and decide on appropriate action."]
 
 

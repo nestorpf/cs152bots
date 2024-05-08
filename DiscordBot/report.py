@@ -69,12 +69,15 @@ class Report:
                 return ["What is the spam type? Type the corresponding number: \n \
                         1 for fraud/scam, 2 for solicitation, or 3 for impersonation"]
             if reason == "offensive content":
+                self.isNotReason = False
                 return ["What type of offensive content? Type the corresponding number: \n \
                         1 for sexually explicit content, 2 for impersonation, or 3 for child sexual abuse material."]
             if reason == "harassment":
+                self.isNotReason = False
                 return ["What type of harassment? Type the corresponding number: \n \
                         1 for hate speech, 2 for sexually explicit content, 3 for impersonation."]
             if reason == "imminent danger":
+                self.isNotReason = False
                 return ["What is the imminent danger type? Type the corresponding number: \n \
                         1 for self-harm, 2 for suicide, or 3 for physical abuse."]
 

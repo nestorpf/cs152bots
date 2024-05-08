@@ -61,7 +61,7 @@ class Report:
         if self.state == State.MESSAGE_IDENTIFIED:
             abuse_type = message.content.lower()
             if abuse_type == "spam":
-                self.state = State.AWAITING_SPAM_TYPE  # Transition to awaiting spam type
+                self.state = State.AWAITING_SPAM_TYPE
                 return ["Please specify the type of `Spam` (Fraud/Scam, Solicitation, Impersonation)"]
             elif abuse_type == "offensive content":
                 self.state = State.AWAITING_OFF_TYPE

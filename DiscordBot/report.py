@@ -7,7 +7,37 @@ class State(Enum):
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
     REPORT_COMPLETE = auto()
+    CONFIRMATION_MESSAGE = auto()
+    ADDITIONAL_COMMENT_PROMPT = auto()
+    THREAT = auto()
 
+class Abuse():
+    SPAM = 1
+    HARASSMENT = 2
+    OFFENSIVE_CONTENT = 3
+    THREAT = 4
+
+class SpamType():
+    FRAUD/SCAM = 1
+    SOLICITATION = 2
+    IMPERSONATION = 3
+
+class OffensiveContentType():
+    HATE_SPEECH = 1
+    SEXUAL_EXPLICIT = 2
+    IMPERSONATION = 3
+    CHILD_SEXUAL = 4
+    ADVOCATING_VIOLENCE = 5
+class HarassmentType():
+    SEXUAL_EXPLICIT = 1
+    IMPERSONATION = 2
+    CHILD_SEXUAL = 3
+
+class ImminentDangerType():
+    SELF_HARM = 1
+    SUICIDE = 2
+    PHYSICAL_ABUSE = 3
+    
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"

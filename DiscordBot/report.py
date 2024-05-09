@@ -3,6 +3,11 @@ import discord
 import re
 
 report_flow = []
+reports_to_moderate = []
+users_reported = []
+user_history = {}
+curr_user = ""
+# user name to total reports, total confirmed reports
 
 class State(Enum):
     REPORT_START = auto()
@@ -14,11 +19,16 @@ class State(Enum):
     AWAITING_HAR_TYPE = auto()
     AWAITING_IMM_TYPE = auto()
     REPORT_COMPLETE = auto()
+    AWAITING_MOD_PASS = auto()
+    AWAITING_MOD_RESPONSE = auto()
+    AWAITING_MOD_ABUSE_TYPE = auto()
+    MOD_VIOLATION = auto()
 
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
+    MOD_KEYWORD = "moderator"
 
     def __init__(self, client):
         self.state = State.REPORT_START
@@ -27,6 +37,47 @@ class Report:
         self.reporter_name = None
 
     async def handle_message(self, message):
+        if message.content == self.MOD_KEYWORD:
+            self.state = State.AWAITING_MOD_PASS
+            return ["Please enter the moderator password to confirm you are a moderator"]
+        
+        if self.state == State.AWAITING_MOD_PASS:
+            input_pass = message.content
+            if input_pass == "Moderator1234":
+                self.state = State.AWAITING_MOD_RESPONSE
+                return [f"Welcome moderator, there are `{len(reports_to_moderate)}` reports that require review, type `review` to review the oldest report filed or `cancel` to cancel process"]
+            else:
+                return ["incorrect password, process canceled"]
+        
+        if self.state == State.AWAITING_MOD_RESPONSE:
+            mod_response = message.content.lower()
+            if mod_response == "review":
+                self.state = State.AWAITING_MOD_ABUSE_TYPE
+                return [reports_to_moderate.pop(0)]
+            elif mod_response == "cancel":
+                return ["Process canceled"]
+            else:
+                return ["Invalid input. Please specify either `review` to review the oldest report filed or `cancel` to cancel process"]
+        
+        if self.state == State.AWAITING_MOD_ABUSE_TYPE:
+            mod_abuse_type = message.content.lower()
+            if mod_abuse_type == "spam":
+                self.state = State.MOD_VIOLATION
+                global curr_user
+                curr_user = users_reported.pop(0)
+                return [f"Here is the history of user `{curr_user}`: \n"
+                        f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
+                        f"Based on these numbers, does this user have a valid history of violations?"]
+            
+        
+        if self.state == State.MOD_VIOLATION:
+            mod_answer = message.content.lower()
+            if mod_answer == "yes":
+                return [f"User `{curr_user}` has been banned!"]
+
+            
+
+            
         if message.content == self.CANCEL_KEYWORD:
             self.state = State.REPORT_COMPLETE
             return ["Report cancelled."]
@@ -34,10 +85,11 @@ class Report:
         if self.state == State.REPORT_START:
             global report_flow
             report_flow = []
-            reply = ("Thank you for starting the reporting process. "
+            reply = ("Thank you for starting the reporting/moderation process. "
                      "Say `help` at any time for more information.\n\n"
                      "Please copy-paste the link to the message you want to report.\n"
-                     "You can obtain this link by right-clicking the message and clicking `Copy Message Link`.")
+                     "You can obtain this link by right-clicking the message and clicking `Copy Message Link`\n\n"
+                     "Say `moderator` to begin the moderation process.")
             self.reporter_name = message.author.name
             self.state = State.AWAITING_MESSAGE
             return [reply]
@@ -133,8 +185,8 @@ class Report:
         """
         Send the completed report to the corresponding moderator channel.
         """
-        guild_id = self.message.guild.id
-        mod_channel = self.client.mod_channels.get(guild_id)
+        #guild_id = self.message.guild.id
+        #mod_channel = self.client.mod_channels.get(guild_id)
 
         original_message = f"{self.message.author.name}: {self.message.content}"
         user_flow = ""
@@ -143,12 +195,23 @@ class Report:
                 user_flow += elem[0].upper() + elem[1:]
             else:
                 user_flow += (elem[0].upper() + elem[1:] + " -> ")
+
+        if self.message.author.name not in user_history:
+            user_history[self.message.author.name] = [1, 0]
+        else:
+            user_history[self.message.author.name][0] += 1
         report_message = (
-            f"Report initiated by user: `{self.reporter_name}`\n\n"
-            f"Reported Message:\n```{original_message}```\n"
-            f"User Report Flow: `{user_flow}`"
+            f"`Begin report summary:`\n"
+            f"     Report 1 of {len(reports_to_moderate) + 1} pending reports initiated by user: `{self.reporter_name}`\n\n"
+            f"     Reported Message:\n```{original_message}```\n"
+            f"     User Report Flow: `{user_flow}`\n"
+            f"`End report summary.`\n\n"
+            f"Moderator, please classify above report (Spam, Offensive Content, Harassment, Imminent Danger, Invalid Report)"
         )
-        await mod_channel.send(report_message)
+        reports_to_moderate.append(report_message)
+        users_reported.append(self.message.author.name)
+        #await mod_channel.send(report_message)
+
 
     async def thank_user(self, message):
         if self.state == State.AWAITING_IMM_TYPE:

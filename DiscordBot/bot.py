@@ -53,7 +53,7 @@ class ModBot(discord.Client):
             for channel in guild.text_channels:
                 if channel.name == f'group-{self.group_num}-mod':
                     self.mod_channels[guild.id] = channel
-        
+                         
 
     async def on_message(self, message):
         '''
@@ -74,7 +74,9 @@ class ModBot(discord.Client):
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
             reply =  "Use the `report` command to begin the reporting process.\n"
-            reply += "Use the `cancel` command to cancel the report process.\n"
+            reply += "Use the `cancel` command to cancel the report/moderation process.\n"
+            reply += "Use the `moderator` command to begin the moderation process.\n"
+
             await message.channel.send(reply)
             return
 
@@ -82,7 +84,7 @@ class ModBot(discord.Client):
         responses = []
 
         # Only respond to messages if they're part of a reporting flow
-        if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
+        if author_id not in self.reports and not (message.content.startswith(Report.START_KEYWORD) or message.content.startswith(Report.MOD_KEYWORD)):
             return
 
         # If we don't currently have an active report for this user, add one

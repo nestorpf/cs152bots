@@ -77,7 +77,7 @@ class Report:
                 curr_user = users_reported.pop(0)
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
-                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)"]
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No) \n Consider that we automatically ban users after 3 violations."]
             elif mod_abuse_type == "hateful content":
                 self.state = State.MOD_OFF_TYPE
                 return ["What type of offense is this? (Hate Speech, Other)"]
@@ -90,7 +90,7 @@ class Report:
                 self.state = State.MOD_INVALID
                 return ["Suspend user who submitted invalid report or warn them? (Suspend, Warn)"]
             else:
-                return ["Invalid input. Please classify above report (Spam, Offensive Content, Harassment, Imminent Danger, Invalid Report)"]
+                return ["Invalid input. Please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"]
             
         
         if self.state == State.MOD_INVALID:
@@ -120,10 +120,10 @@ class Report:
                 curr_user = users_reported.pop(0)
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
-                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)"]
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No) \n Consider that we automatically ban users after 3 violations."]
             elif mod_ask == "no":
                 self.state = State.MOD_OPTIONS
-                return ["Choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Watn user with no suspension)"]
+                return ["Choose one of these three actions (Permanent user ban + add violator to blacklist, Warn user and temporarily suspend user, Watn user with no suspension)"]
             else: 
                 return ["Invalid input. Please specify either `Yes` or `No`"]
         
@@ -144,13 +144,13 @@ class Report:
                 return [f"User `{curr_user}` has been permanently banned!"]
             elif mod_answer == "no":
                 self.state = State.MOD_OPTIONS
-                return ["Choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
+                return ["Choose one of these three actions (Permanent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
             else:
                 return ["Invalid input. Please specify either `Yes` or `No` based on if this user has a valid history of violations"]
         
         if self.state == State.MOD_OPTIONS:
             mod_choice = message.content.lower()
-            if mod_choice == "permamnent user ban + add violator to blacklist":
+            if mod_choice == "permanent user ban + add violator to blacklist":
                 user_history[curr_user][1] += 1
                 self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been permanently banned and blacklisted!"]
@@ -163,7 +163,7 @@ class Report:
                 self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been warned with no suspension"]
             else:
-                return ["Invalid input. Please choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
+                return ["Invalid input. Please choose one of these three actions (Permanent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
 
         if self.state == State.MOD_VIOLATION:
             mod_answer = message.content.lower()

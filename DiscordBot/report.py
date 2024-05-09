@@ -78,7 +78,7 @@ class Report:
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
                         f"Based on these numbers, does this user have a valid history of violations? (Yes or No)"]
-            elif mod_abuse_type == "offensive content":
+            elif mod_abuse_type == "hateful content":
                 self.state = State.MOD_OFF_TYPE
                 return ["What type of offense is this? (Hate Speech, Other)"]
             elif mod_abuse_type == "harassment":
@@ -216,18 +216,18 @@ class Report:
             self.message = reported_message
             self.state = State.MESSAGE_IDENTIFIED
             return ["I found this message:", f"```{reported_message.author.name}: {reported_message.content}```",
-                    "Please specify the abuse type (Spam, Offensive Content, Harassment, Imminent Danger)"]
+                    "Please specify the abuse type (Spam, Hateful Content, Harassment, Imminent Danger)"]
 
         if self.state == State.MESSAGE_IDENTIFIED:
             abuse_type = message.content.lower()
-            if abuse_type in ["spam", "offensive content", "harassment", "imminent danger"]:
+            if abuse_type in ["spam", "hateful content", "harassment", "imminent danger"]:
                 report_flow.append(abuse_type)
             if abuse_type == "spam":
                 self.state = State.AWAITING_SPAM_TYPE  # Transition to awaiting spam type
                 return ["Please specify the type of `Spam` (Fraud/Scam, Solicitation, Impersonation)"]
-            elif abuse_type == "offensive content":
+            elif abuse_type == "hateful content":
                 self.state = State.AWAITING_OFF_TYPE
-                return ["Please specify the type of `Offensive Constent` (Hate Speech, Sexually Explicit Content, Impersonation, Child Sexual Abuse Material, Advocating or Glorifying Violence)"]
+                return ["Please specify the type of `Hateful Content` (Hate Speech, Encouraging Hateful Content, Threatning Violence, Mocking Trauma)"]
             elif abuse_type == "harassment":
                 self.state = State.AWAITING_HAR_TYPE
                 return ["Pleas specify the type of `Harassment` (Sexually Explicit Content, Impersonation, Child Sexual Abuse Material)"]
@@ -235,7 +235,7 @@ class Report:
                 self.state = State.AWAITING_IMM_TYPE
                 return ["Please sepcify the type of `Imminent Danger` (Self-Harm, Suicide, Physical Abuse)"]
             else:
-                return ["Invalid spam type. Please specify a valid type (Spam, Offensive Content, Harassment, Imminent Danger)"]
+                return ["Invalid spam type. Please specify a valid type (Spam, Hateful Content, Harassment, Imminent Danger)"]
 
         if self.state == State.AWAITING_IMM_TYPE:
             imm_type = message.content.lower()
@@ -255,7 +255,7 @@ class Report:
 
         if self.state == State.AWAITING_OFF_TYPE:
             off_type = message.content.lower()
-            if off_type in ["sexually explicit content", "impersonation", "child sexual abuse material", "advocating or glorifying violence", "advocating violence", "glorifying violence"]:
+            if off_type in ["encouraging hateful content", "threatening violence", "mocking trauma"]:
                 report_flow.append(off_type)
                 return await self.thank_user(message)
             elif off_type == "hate speech":
@@ -263,7 +263,7 @@ class Report:
                 self.state = State.AWAITING_HATE_TYPE
                 return ["Please specify the type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
             else:
-                return ["Invalid `Offensive Content` type. Please specify a valid type (Hate Speech, Sexually Explicit Content, Impersonation, Child Sexual Abuse Material, Advocating or Glorifying Violence)"]
+                return ["Invalid `Hateful Content` type. Please specify a valid type (Hate Speech, Sexually Explicit Content, Impersonation, Child Sexual Abuse Material, Advocating or Glorifying Violence)"]
         
         if self.state == State.AWAITING_HATE_TYPE:
             hate_type = message.content.lower()
@@ -307,7 +307,7 @@ class Report:
             f"Reported Message:\n```{original_message}```\n"
             f"User Report Flow: `{user_flow}`\n"
             f"`End report summary.`\n\n"
-            f"Moderator, please classify above report (Spam, Offensive Content, Harassment, Imminent Danger, Invalid Report)"
+            f"Moderator, please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"
         )
         reports_to_moderate.append(report_message)
         #reports_to_moderate.append(report_message)

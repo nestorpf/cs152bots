@@ -317,7 +317,7 @@ class Report:
 
     async def thank_user(self, message):
         if self.state == State.AWAITING_IMM_TYPE:
-            await message.channel.send("Please contact your local authorities is anybody is in immediate danger. We will also review the reported content.")
+            await message.channel.send("Please contact your local authorities if anybody is in immediate danger. We will also review the reported content.")
         self.state = State.REPORT_COMPLETE
 
         await self.send_report_to_moderator()

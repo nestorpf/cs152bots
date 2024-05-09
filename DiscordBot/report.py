@@ -54,7 +54,8 @@ class Report:
                 self.reporter_name = message.author.name
                 return [f"Welcome moderator, there are `{len(reports_to_moderate)}` reports that require review, type `review` to review the oldest report filed or `cancel` to cancel process"]
             else:
-                return ["incorrect password, process canceled"]
+                self.state = State.REPORT_COMPLETE
+                return ["Incorrect password, process canceled"]
         
         if self.state == State.AWAITING_MOD_RESPONSE:
             mod_response = message.content.lower()
@@ -63,6 +64,7 @@ class Report:
                 return [f"`Begin report summary:`\n"
                         f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the oldest report filed of the `{len(reports_to_moderate)}` {reports_to_moderate.pop(0)}"]
             elif mod_response == "cancel":
+                self.state = State.REPORT_COMPLETE
                 return ["Process canceled"]
             else:
                 return ["Invalid input. Please specify either `review` to review the oldest report filed or `cancel` to cancel process"]
@@ -87,6 +89,8 @@ class Report:
             elif mod_abuse_type == "invalid report":
                 self.state = State.MOD_INVALID
                 return ["Suspend user who submitted invalid report or warn them? (Suspend, Warn)"]
+            else:
+                return ["Invalid input. Please classify above report (Spam, Offensive Content, Harassment, Imminent Danger, Invalid Report)"]
             
         
         if self.state == State.MOD_INVALID:
@@ -128,12 +132,15 @@ class Report:
             if hate_type in ["racism", "homophobia", "sexism", "other"]:
                 self.state = State.MOD_ASK_VIOLATION
                 return ["Would you like to look at other violations?"]
+            else:
+                return ["Invalid input. Please specify valid type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
         
 
         if self.state == State.MOD_VIOLATION2:
             mod_answer = message.content.lower()
             if mod_answer == "yes":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been permanently banned!"]
             elif mod_answer == "no":
                 self.state = State.MOD_OPTIONS
@@ -145,12 +152,15 @@ class Report:
             mod_choice = message.content.lower()
             if mod_choice == "permamnent user ban + add violator to blacklist":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been permanently banned and blacklisted!"]
             elif mod_choice == "warn user and temporarily suspend user":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user} has been warned and temporarily suspended"]
             elif mod_choice == "warn user with no suspension":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been warned with no suspension"]
             else:
                 return ["Invalid input. Please choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
@@ -159,9 +169,11 @@ class Report:
             mod_answer = message.content.lower()
             if mod_answer == "yes":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been permanently banned!"]
             elif mod_answer == "no":
                 user_history[curr_user][1] += 1
+                self.state = State.REPORT_COMPLETE
                 return [f"User `{curr_user}` has been temporarily banned and issued a warning"]
             else:
                 return ["Invalid input. Please specify either `Yes` or `No` based on if this user has a valid history of violations"]

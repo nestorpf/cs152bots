@@ -23,6 +23,12 @@ class State(Enum):
     AWAITING_MOD_RESPONSE = auto()
     AWAITING_MOD_ABUSE_TYPE = auto()
     MOD_VIOLATION = auto()
+    MOD_OFF_TYPE = auto()
+    MOD_ASK_VIOLATION = auto()
+    MOD_HATE_TYPE = auto()
+    MOD_OPTIONS = auto()
+    MOD_VIOLATION2 = auto()
+    MOD_INVALID = auto()
 
 class Report:
     START_KEYWORD = "report"
@@ -45,6 +51,7 @@ class Report:
             input_pass = message.content
             if input_pass == "Moderator1234":
                 self.state = State.AWAITING_MOD_RESPONSE
+                self.reporter_name = message.author.name
                 return [f"Welcome moderator, there are `{len(reports_to_moderate)}` reports that require review, type `review` to review the oldest report filed or `cancel` to cancel process"]
             else:
                 return ["incorrect password, process canceled"]
@@ -53,7 +60,8 @@ class Report:
             mod_response = message.content.lower()
             if mod_response == "review":
                 self.state = State.AWAITING_MOD_ABUSE_TYPE
-                return [reports_to_moderate.pop(0)]
+                return [f"`Begin report summary:`\n"
+                        f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the oldest report filed of the `{len(reports_to_moderate)}` {reports_to_moderate.pop(0)}"]
             elif mod_response == "cancel":
                 return ["Process canceled"]
             else:
@@ -67,13 +75,96 @@ class Report:
                 curr_user = users_reported.pop(0)
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
-                        f"Based on these numbers, does this user have a valid history of violations?"]
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)"]
+            elif mod_abuse_type == "offensive content":
+                self.state = State.MOD_OFF_TYPE
+                return ["What type of offense is this? (Hate Speech, Other)"]
+            elif mod_abuse_type == "harassment":
+                self.state = State.MOD_VIOLATION2
+                return ["Explain the type of harassment indicated in the reported message"]
+            elif mod_abuse_type == "imminent danger":
+                return ["Write message regarding report that will be sent to local authorities"]
+            elif mod_abuse_type == "invalid report":
+                self.state = State.MOD_INVALID
+                return ["Suspend user who submitted invalid report or warn them? (Suspend, Warn)"]
             
         
+        if self.state == State.MOD_INVALID:
+            mod_inv = message.content.lower()
+            if mod_inv == "suspend":
+                return [f"invalid reporter `{self.reporter_name}` has been suspended"]
+            elif mod_inv == "warn":
+                return [f"invalid reporter `{self.reporter_name}` has been warned"]
+            else:
+                return ["Please specify valid action of either `Suspend` or `Warn`"]
+       
+        if self.state == State.MOD_OFF_TYPE:
+            mod_off_type = message.content.lower()
+            if mod_off_type == "hate speech":
+                self.state = State.MOD_HATE_TYPE
+                return ["Please specify type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
+            elif mod_off_type == "other":
+                self.state = State.MOD_ASK_VIOLATION
+                return ["Would you like to look at other violations?"]
+            else:
+                return ["Invalid input. Either specify `Hate Speech` or `Other`"]
+        
+        if self.state == State.MOD_ASK_VIOLATION:
+            mod_ask = message.content.lower()
+            if mod_ask == "yes":
+                self.state = State.MOD_VIOLATION2
+                curr_user = users_reported.pop(0)
+                return [f"Here is the history of user `{curr_user}`: \n"
+                        f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)"]
+            elif mod_ask == "no":
+                self.state = State.MOD_OPTIONS
+                return ["Choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Watn user with no suspension)"]
+            else: 
+                return ["Invalid input. Please specify either `Yes` or `No`"]
+        
+        if self.state == State.MOD_HATE_TYPE:
+            hate_type = message.content.lower()
+            if hate_type in ["racism", "homophobia", "sexism", "other"]:
+                self.state = State.MOD_ASK_VIOLATION
+                return ["Would you like to look at other violations?"]
+        
+
+        if self.state == State.MOD_VIOLATION2:
+            mod_answer = message.content.lower()
+            if mod_answer == "yes":
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user}` has been permanently banned!"]
+            elif mod_answer == "no":
+                self.state = State.MOD_OPTIONS
+                return ["Choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
+            else:
+                return ["Invalid input. Please specify either `Yes` or `No` based on if this user has a valid history of violations"]
+        
+        if self.state == State.MOD_OPTIONS:
+            mod_choice = message.content.lower()
+            if mod_choice == "permamnent user ban + add violator to blacklist":
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user}` has been permanently banned and blacklisted!"]
+            elif mod_choice == "warn user and temporarily suspend user":
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user} has been warned and temporarily suspended"]
+            elif mod_choice == "warn user with no suspension":
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user}` has been warned with no suspension"]
+            else:
+                return ["Invalid input. Please choose one of these three actions (Permamnent user ban + add violator to blacklist, Warn user and temporarily suspend user, Warn user with no suspension)"]
+
         if self.state == State.MOD_VIOLATION:
             mod_answer = message.content.lower()
             if mod_answer == "yes":
-                return [f"User `{curr_user}` has been banned!"]
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user}` has been permanently banned!"]
+            elif mod_answer == "no":
+                user_history[curr_user][1] += 1
+                return [f"User `{curr_user}` has been temporarily banned and issued a warning"]
+            else:
+                return ["Invalid input. Please specify either `Yes` or `No` based on if this user has a valid history of violations"]
 
             
 
@@ -85,11 +176,10 @@ class Report:
         if self.state == State.REPORT_START:
             global report_flow
             report_flow = []
-            reply = ("Thank you for starting the reporting/moderation process. "
+            reply = ("Thank you for starting the reporting process. "
                      "Say `help` at any time for more information.\n\n"
                      "Please copy-paste the link to the message you want to report.\n"
-                     "You can obtain this link by right-clicking the message and clicking `Copy Message Link`\n\n"
-                     "Say `moderator` to begin the moderation process.")
+                     "You can obtain this link by right-clicking the message and clicking `Copy Message Link`\n\n")
             self.reporter_name = message.author.name
             self.state = State.AWAITING_MESSAGE
             return [reply]
@@ -201,14 +291,14 @@ class Report:
         else:
             user_history[self.message.author.name][0] += 1
         report_message = (
-            f"`Begin report summary:`\n"
-            f"     Report 1 of {len(reports_to_moderate) + 1} pending reports initiated by user: `{self.reporter_name}`\n\n"
-            f"     Reported Message:\n```{original_message}```\n"
-            f"     User Report Flow: `{user_flow}`\n"
+            f"initiated by user: `{self.reporter_name}`\n\n"
+            f"Reported Message:\n```{original_message}```\n"
+            f"User Report Flow: `{user_flow}`\n"
             f"`End report summary.`\n\n"
             f"Moderator, please classify above report (Spam, Offensive Content, Harassment, Imminent Danger, Invalid Report)"
         )
         reports_to_moderate.append(report_message)
+        #reports_to_moderate.append(report_message)
         users_reported.append(self.message.author.name)
         #await mod_channel.send(report_message)
 

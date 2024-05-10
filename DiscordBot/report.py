@@ -7,6 +7,7 @@ reports_to_moderate = []
 users_reported = []
 user_history = {}
 curr_user = ""
+user_comm = ""
 # user name to total reports, total confirmed reports
 
 class State(Enum):
@@ -29,6 +30,10 @@ class State(Enum):
     MOD_OPTIONS = auto()
     MOD_VIOLATION2 = auto()
     MOD_INVALID = auto()
+    USER_ASK_COMM = auto()
+    USER_INPUT_COMM = auto()
+    ASK_BLOCK = auto()
+    THANK_MOD = auto()
 
 class Report:
     START_KEYWORD = "report"
@@ -43,6 +48,7 @@ class Report:
         self.reporter_name = None
 
     async def handle_message(self, message):
+        global user_comm
         if message.content == self.MOD_KEYWORD:
             self.state = State.AWAITING_MOD_PASS
             return ["Please enter the moderator password to confirm you are a moderator"]
@@ -60,9 +66,11 @@ class Report:
         if self.state == State.AWAITING_MOD_RESPONSE:
             mod_response = message.content.lower()
             if mod_response == "review":
+                # global curr_user
+                # curr_user = users_reported.pop(0)
                 self.state = State.AWAITING_MOD_ABUSE_TYPE
-                return [f"`Begin report summary:`\n"
-                        f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the oldest report filed of the `{len(reports_to_moderate)}` {reports_to_moderate.pop(0)}"]
+                return [f"`Begin report summary:`\n\n"
+                        f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the oldest report filed of the `{len(reports_to_moderate)}` pending reports{reports_to_moderate.pop(0)}"]
             elif mod_response == "cancel":
                 self.state = State.REPORT_COMPLETE
                 return ["Process canceled"]
@@ -71,13 +79,17 @@ class Report:
         
         if self.state == State.AWAITING_MOD_ABUSE_TYPE:
             mod_abuse_type = message.content.lower()
-            if mod_abuse_type == "spam":
-                self.state = State.MOD_VIOLATION
+            already_popped = False
+            if not already_popped:
                 global curr_user
                 curr_user = users_reported.pop(0)
+            if mod_abuse_type == "spam":
+                self.state = State.MOD_VIOLATION
+                # global curr_user
+                # curr_user = users_reported.pop(0)
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
-                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No) \n Consider that we automatically ban users after 3 violations."]
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)\nConsider that we automatically ban users after 3 violations."]
             elif mod_abuse_type == "hateful content":
                 self.state = State.MOD_OFF_TYPE
                 return ["What type of offense is this? (Hate Speech, Other)"]
@@ -85,19 +97,27 @@ class Report:
                 self.state = State.MOD_VIOLATION2
                 return ["Explain the type of harassment indicated in the reported message"]
             elif mod_abuse_type == "imminent danger":
+                self.state = State.THANK_MOD
                 return ["Write message regarding report that will be sent to local authorities"]
             elif mod_abuse_type == "invalid report":
                 self.state = State.MOD_INVALID
                 return ["Suspend user who submitted invalid report or warn them? (Suspend, Warn)"]
             else:
+                already_popped = True
                 return ["Invalid input. Please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"]
             
+        if self.state == State.THANK_MOD:
+            mod_mess = message.content.lower()
+            self.state = State.REPORT_COMPLETE
+            return [f"Thank you, the message `{mod_mess}` has been sent to authorities"]
         
         if self.state == State.MOD_INVALID:
             mod_inv = message.content.lower()
             if mod_inv == "suspend":
+                self.state = State.REPORT_COMPLETE
                 return [f"invalid reporter `{self.reporter_name}` has been suspended"]
             elif mod_inv == "warn":
+                self.state = State.REPORT_COMPLETE
                 return [f"invalid reporter `{self.reporter_name}` has been warned"]
             else:
                 return ["Please specify valid action of either `Suspend` or `Warn`"]
@@ -109,7 +129,7 @@ class Report:
                 return ["Please specify type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
             elif mod_off_type == "other":
                 self.state = State.MOD_ASK_VIOLATION
-                return ["Would you like to look at other violations?"]
+                return ["Would you like to look at other violations? (Yes, No)"]
             else:
                 return ["Invalid input. Either specify `Hate Speech` or `Other`"]
         
@@ -117,10 +137,10 @@ class Report:
             mod_ask = message.content.lower()
             if mod_ask == "yes":
                 self.state = State.MOD_VIOLATION2
-                curr_user = users_reported.pop(0)
+                # curr_user = users_reported.pop(0)
                 return [f"Here is the history of user `{curr_user}`: \n"
                         f"`{user_history[curr_user][0]}` total reports and `{user_history[curr_user][1]}` moderator confirmed reports \n\n"
-                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No) \n Consider that we automatically ban users after 3 violations."]
+                        f"Based on these numbers, does this user have a valid history of violations? (Yes or No)\nConsider that we automatically ban users after 3 violations."]
             elif mod_ask == "no":
                 self.state = State.MOD_OPTIONS
                 return ["Choose one of these three actions (Permanent user ban + add violator to blacklist, Warn user and temporarily suspend user, Watn user with no suspension)"]
@@ -130,8 +150,10 @@ class Report:
         if self.state == State.MOD_HATE_TYPE:
             hate_type = message.content.lower()
             if hate_type in ["racism", "homophobia", "sexism", "other"]:
+                if hate_type == "homophobia":
+                    await message.channel.send(f"This article: `https://www.verywellmind.com/what-is-homophobia-5077409` has been sent to `{curr_user}` for them to reflect\n")
                 self.state = State.MOD_ASK_VIOLATION
-                return ["Would you like to look at other violations?"]
+                return ["Would you like to look at other violations? (Yes, No)"]
             else:
                 return ["Invalid input. Please specify valid type of `Hate Speech` (Racism, Homophobia, Sexism, Other)"]
         
@@ -235,13 +257,16 @@ class Report:
                 self.state = State.AWAITING_IMM_TYPE
                 return ["Please sepcify the type of `Imminent Danger` (Self-Harm, Suicide, Physical Abuse)"]
             else:
-                return ["Invalid spam type. Please specify a valid type (Spam, Hateful Content, Harassment, Imminent Danger)"]
+                return ["Invalid abuse type. Please specify a valid type (Spam, Hateful Content, Harassment, Imminent Danger)"]
 
         if self.state == State.AWAITING_IMM_TYPE:
             imm_type = message.content.lower()
-            if imm_type in ["self=harm", "suicide", "physical abuse", "self harm"]:
+            if imm_type in ["self-harm", "suicide", "physical abuse", "self harm"]:
                 report_flow.append(imm_type)
-                return await self.thank_user(message)
+                self.state = State.USER_ASK_COMM
+                await message.channel.send("Please contact your local authorities if anybody is in immediate danger. We will also review the reported content.")
+                return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
+                #return await self.thank_user(message)
             else:
                 return ["Invalid `Imminent Danger` type. Please specify a valid type (Self-Harm, Suicide, Physical Abuse)"]
             
@@ -249,7 +274,9 @@ class Report:
             har_type = message.content.lower()
             if har_type in ["sexually explicit content", "impersonation", "child sexual abuse material"]:
                 report_flow.append(har_type)
-                return await self.thank_user(message)
+                self.state = State.USER_ASK_COMM
+                return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
+                #return await self.thank_user(message)
             else:
                 return ["Invalid `Harassment` type. Please specify a valid type (Sexually Explicit Content, Impersonation, Child Sexual Abuse Material)"]
 
@@ -257,7 +284,9 @@ class Report:
             off_type = message.content.lower()
             if off_type in ["encouraging hateful content", "threatening violence", "mocking trauma"]:
                 report_flow.append(off_type)
-                return await self.thank_user(message)
+                self.state = State.USER_ASK_COMM
+                return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
+                #return await self.thank_user(message)
             elif off_type == "hate speech":
                 report_flow.append("hate speech")
                 self.state = State.AWAITING_HATE_TYPE
@@ -269,7 +298,9 @@ class Report:
             hate_type = message.content.lower()
             if hate_type in ["racism", "homophobia", "sexism", "other"]:
                 report_flow.append(hate_type)
-                return await self.thank_user(message)
+                self.state = State.USER_ASK_COMM
+                return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
+                #return await self.thank_user(message)
             else:
                 return ["Please specify a valid `Hate Speech` type (Racism, Homophobia, Sexism, Other)"]
             
@@ -278,19 +309,57 @@ class Report:
             spam_type = message.content.lower()
             if spam_type in ["fraud/scam", "solicitation", "impersonation", "fraud", "scam"]:
                 report_flow.append(spam_type)
-                return await self.thank_user(message)
+                self.state = State.USER_ASK_COMM
+                return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
+                #return await self.thank_user(message)
             else:
                 return ["Please specify a valid `Spam` type (Fraud/Scam, Solicitation, Impersonation)."]
 
 
-    async def send_report_to_moderator(self):
+
+
+        if self.state == State.USER_ASK_COMM:
+            user_com_ans = message.content.lower()
+            if user_com_ans == "yes":
+                self.state = State.USER_INPUT_COMM
+                return ["Please enter your comment below"]
+            elif user_com_ans == "no":
+                user_comm = ""
+                self.state = State.ASK_BLOCK
+                return [f"Would you like to block user `{self.message.author.name}` (Yes, No)"]
+            else:
+                return ["Invalid input. Please specify either `Yes` or `No` depending on if you'd like to add a comment"]
+        
+        if self.state == State.USER_INPUT_COMM:
+            user_comm = message.content
+            self.state = State.ASK_BLOCK
+            return [f"Your comment has been recorded. Would you like to block user `{self.message.author.name}` (Yes, No)"]
+
+        if self.state == State.ASK_BLOCK:
+            user_block = message.content.lower()
+            if user_block == "yes":
+                self.state = State.REPORT_COMPLETE
+                await self.send_report_to_moderator(user_comm)
+                return [f"User `{self.message.author.name}` is blocked! Report process terminated"]
+            elif user_block == "no":
+                self.state = State.REPORT_COMPLETE
+                await self.send_report_to_moderator(user_comm)
+                return ["Report process terminated"]
+            else:
+                return [f"Invalid input. Please specify eith `Yes` if you would like user {curr_user} blocked or `No` if not"]
+
+
+
+    async def send_report_to_moderator(self, comment):
         """
         Send the completed report to the corresponding moderator channel.
         """
         #guild_id = self.message.guild.id
         #mod_channel = self.client.mod_channels.get(guild_id)
 
+
         original_message = f"{self.message.author.name}: {self.message.content}"
+        users_reported.append(self.message.author.name)
         user_flow = ""
         for i, elem in enumerate(report_flow):
             if i == len(report_flow) - 1:
@@ -302,27 +371,44 @@ class Report:
             user_history[self.message.author.name] = [1, 0]
         else:
             user_history[self.message.author.name][0] += 1
-        report_message = (
-            f"initiated by user: `{self.reporter_name}`\n\n"
-            f"Reported Message:\n```{original_message}```\n"
-            f"User Report Flow: `{user_flow}`\n"
-            f"`End report summary.`\n\n"
-            f"Moderator, please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"
-        )
+
+        if len(comment) > 0:
+            report_message = (
+                f", initiated by user: `{self.reporter_name}`\n\n"
+                f"Reported Message:\n```{original_message}```\n"
+                f"User Report Flow: `{user_flow}`\n"
+                f"User `{self.reporter_name}` left this comment regarding report: `{comment}`\n\n"
+                f"`End report summary.`\n\n"
+                f"Moderator, please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"
+            )
+        else:
+            report_message = (
+                f", initiated by user: `{self.reporter_name}`\n\n"
+                f"Reported Message:\n```{original_message}```\n"
+                f"User Report Flow: `{user_flow}`\n"
+                f"User `{self.reporter_name}` left no comments regarding report\n\n"
+                f"`End report summary.`\n\n"
+                f"Moderator, please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"
+            )
         reports_to_moderate.append(report_message)
         #reports_to_moderate.append(report_message)
-        users_reported.append(self.message.author.name)
+        #users_reported.append(self.message.author.name)
         #await mod_channel.send(report_message)
 
 
-    async def thank_user(self, message):
-        if self.state == State.AWAITING_IMM_TYPE:
-            await message.channel.send("Please contact your local authorities if anybody is in immediate danger. We will also review the reported content.")
-        self.state = State.REPORT_COMPLETE
+    # async def thank_user(self, message):
+    #     if self.state == State.AWAITING_IMM_TYPE:
+    #         await message.channel.send("Please contact your local authorities if anybody is in immediate danger. We will also review the reported content.")
+    #     self.state = State.USER_ASK_COMM
+    #     return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
 
-        await self.send_report_to_moderator()
+        
 
-        return ["Thanks for reporting. Our team will review the messages and decide on appropriate action."]
+    #     self.state = State.REPORT_COMPLETE
+
+    #     await self.send_report_to_moderator()
+
+        #return ["Thanks for reporting. Our team will review the messages and decide on appropriate action. Would you like to add any comments pertaining to this report? (Yes, No)"]
 
 
     def report_complete(self):

@@ -58,7 +58,7 @@ class Report:
             if input_pass == "Moderator1234":
                 self.state = State.AWAITING_MOD_RESPONSE
                 self.reporter_name = message.author.name
-                return [f"Welcome moderator, there are `{len(reports_to_moderate)}` reports that require review, type `review` to review the oldest report filed or `cancel` to cancel process"]
+                return [f"Welcome moderator, there are `{len(reports_to_moderate)}` reports that require review, type `review` to review the highest priority report filed/flagged or `cancel` to cancel process"]
             else:
                 self.state = State.REPORT_COMPLETE
                 return ["Incorrect password, process canceled"]
@@ -70,12 +70,12 @@ class Report:
                 # curr_user = users_reported.pop(0)
                 self.state = State.AWAITING_MOD_ABUSE_TYPE
                 return [f"`Begin report summary:`\n\n"
-                        f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the oldest report filed of the `{len(reports_to_moderate)}` pending reports{reports_to_moderate.pop(0)}"]
+                        f"There are currently `{len(reports_to_moderate)}` pending reports. Here is the highest prioirity report filed/flagged of the `{len(reports_to_moderate)}` pending reports{reports_to_moderate.pop(0)}"]
             elif mod_response == "cancel":
                 self.state = State.REPORT_COMPLETE
                 return ["Process canceled"]
             else:
-                return ["Invalid input. Please specify either `review` to review the oldest report filed or `cancel` to cancel process"]
+                return ["Invalid input. Please specify either `review` to review the highest priority report filed/flagged or `cancel` to cancel process"]
         
         if self.state == State.AWAITING_MOD_ABUSE_TYPE:
             mod_abuse_type = message.content.lower()
@@ -359,9 +359,11 @@ class Report:
 
 
         original_message = f"{self.message.author.name}: {self.message.content}"
-        users_reported.append(self.message.author.name)
         user_flow = ""
+        type = ""
         for i, elem in enumerate(report_flow):
+            if i == 0:
+                type = elem
             if i == len(report_flow) - 1:
                 user_flow += elem[0].upper() + elem[1:]
             else:
@@ -390,7 +392,12 @@ class Report:
                 f"`End report summary.`\n\n"
                 f"Moderator, please classify above report (Spam, Hateful Content, Harassment, Imminent Danger, Invalid Report)"
             )
-        reports_to_moderate.append(report_message)
+        if type.lower() == "imminent danger":
+            reports_to_moderate.insert(0, report_message)
+            users_reported.insert(0, self.message.author.name)
+        else:
+            users_reported.append(self.message.author.name)
+            reports_to_moderate.append(report_message)
         #reports_to_moderate.append(report_message)
         #users_reported.append(self.message.author.name)
         #await mod_channel.send(report_message)
